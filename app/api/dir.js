@@ -1,9 +1,32 @@
 const fs = require("fs")
 const path = require("path")
-const FILES_BASE_PATH = "./resources"
 //用户路由
 const Router = require('@koa/router')
 const router = new Router()
+
+const FILES_BASE_PATH = "./resources"
+
+//统一路径前缀
+router.prefix("/api")
+
+// 提供路径API接口
+router.get('/dir/:pathMatch(.*)*',async ctx => {
+    let tgt_path = path.join(FILES_BASE_PATH, ctx.params.pathMatch === undefined ? '' : ctx.params.pathMatch)
+    let validated_path = await validate_path(tgt_path)
+    
+    ctx.type = "JSON"
+    if(validated_path === "not a valid directory" || !validated_path){
+        ctx.body = {
+            code: -1,
+            data: []
+        }
+    }else{
+        ctx.body = {
+            code: 1,
+            data: read_dir_all_infos(tgt_path)
+        }
+    }
+})
 
 // 验证路径是否合法 - 若路径不存在或者路径是文件则判定为不合法
 let validate_path = async (_path) => {
@@ -27,7 +50,8 @@ let read_dir_all_infos = (_path) => {
         let info = {
             "name": name,
             "isDir": stat.isFile() ? 0 : 1,
-            "size": stat.isFile() ? format_size_output(stat.size) : "-1"}
+            "size": stat.isFile() ? format_size_output(stat.size) : "-1"
+        }
         dirInfosObj.push(info)
     })
 
@@ -47,26 +71,5 @@ let format_size_output = (size) => {
 
     return res.toFixed(2) + scales[--index]
 }
-
-router.prefix("/api")
-
-// 提供路径API接口
-router.get('/dir/:pathMatch(.*)*',async ctx => {
-    let tgt_path = path.join(FILES_BASE_PATH, ctx.params.pathMatch === undefined ? '' : ctx.params.pathMatch)
-    let validated_path = await validate_path(tgt_path)
-    
-    ctx.type = "JSON"
-    if(validated_path === "not a valid directory" || !validated_path){
-        ctx.body = {
-            code: -1,
-            data: []
-        }
-    }else{
-        ctx.body = {
-            code: 1,
-            data: read_dir_all_infos(tgt_path)
-        }
-    }
-})
 
 module.exports = router
